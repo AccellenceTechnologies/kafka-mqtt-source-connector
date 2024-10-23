@@ -116,7 +116,7 @@ public class SSLUtils {
         kmf.init(ks, password.toCharArray());
 
         // finally, create SSL socket factory
-        SSLContext context = SSLContext.getInstance("TLSv1.2");
+        SSLContext context = SSLContext.getInstance("TLSv1.3");
         context.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
 
         return context.getSocketFactory();
