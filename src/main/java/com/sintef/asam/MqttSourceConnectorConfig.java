@@ -39,7 +39,7 @@ public class MqttSourceConnectorConfig extends AbstractConfig {
                 .define("mqtt.connector.qos", Type.INT, 1, Importance.LOW,
                         "which qos to use for paho client connection")
                 .define("mqtt.connector.ssl", Type.BOOLEAN, false, Importance.LOW,
-                        "which qos to use for paho client connection")
+                        "Enable SSL for connection")
                 .define("mqtt.connector.ssl.ca", Type.STRING, "./ca.crt", Importance.LOW,
                         "If secure (SSL) then path to CA is needed.")
                 .define("mqtt.connector.ssl.crt", Type.STRING, "./client.crt", Importance.LOW,
@@ -50,6 +50,10 @@ public class MqttSourceConnectorConfig extends AbstractConfig {
                         "Kafka topic to publish on. This depends on processing unit.")
                 .define("mqtt.connector.kafka.name", Type.STRING, "source_kafka", Importance.MEDIUM,
                         "Kafka topic to publish on. This depends on processing unit.");
+				.define("mqtt.connector.username", Type.STRING, null, Importance.MEDIUM,
+                        "MQTT username for authentication")
+                .define("mqtt.connector.password", Type.PASSWORD, null, Importance.MEDIUM,
+                        "MQTT password for authentication")
         return configDef;
     }
 
