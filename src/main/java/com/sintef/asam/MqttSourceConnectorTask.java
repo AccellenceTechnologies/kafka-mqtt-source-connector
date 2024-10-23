@@ -1,7 +1,5 @@
 package com.sintef.asam;
 
-import com.sintef.asam.util.SSLUtils;
-import com.sintef.asam.util.Version;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.apache.kafka.connect.source.SourceTask;
@@ -10,21 +8,12 @@ import org.apache.logging.log4j.Logger;
 import org.eclipse.paho.client.mqttv3.*;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
-import javax.net.ssl.SSLSocketFactory;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.time.ZonedDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-
-import org.bson.Document;
-
-import java.util.Collections;
-
 
 public class MqttSourceConnectorTask extends SourceTask implements MqttCallback {
 
@@ -48,27 +37,10 @@ public class MqttSourceConnectorTask extends SourceTask implements MqttCallback 
         mqttConnectOptions.setUserName(connectorConfiguration.getString("mqtt.connector.username"));
         mqttConnectOptions
                 .setPassword(connectorConfiguration.getPassword("mqtt.connector.password").value().toCharArray());
-        mqttConnectOptions.setAutomaticReconnect(true); 
-		mqttConnectOptions.setKeepAliveInterval(connectorConfiguration.getInt("mqtt.connector.connection_timeout"));
-        if (connectorConfiguration.getBoolean("mqtt.connector.ssl")) {
-            logger.info("SSL TRUE for MqttSourceConnectorTask: '{}, and mqtt client: '{}'.", connectorName, mqttClientId);
-            try {
-                String caCrtFilePath = connectorConfiguration.getString("mqtt.connector.ssl.ca");
-                String crtFilePath = connectorConfiguration.getString("mqtt.connector.ssl.crt");
-                String keyFilePath = connectorConfiguration.getString("mqtt.connector.ssl.key");
-                SSLUtils sslUtils = new SSLUtils(caCrtFilePath, crtFilePath, keyFilePath);
-                sslSocketFactory = sslUtils.getMqttSocketFactory();
-                mqttConnectOptions.setSocketFactory(sslSocketFactory);
-            } catch (Exception e) {
-                logger.error("Not able to create SSLSocketfactory: '{}', for mqtt client: '{}', and connector: '{}'", sslSocketFactory, mqttClientId, connectorName);
-                logger.error(e);
-            }
-        } else {
-            logger.info("SSL FALSE for MqttSourceConnectorTask: '{}, and mqtt client: '{}'.", connectorName, mqttClientId);
-        }
-		
+        mqttConnectOptions.setAutomaticReconnect(true); // Automatisches Wiederverbinden aktivieren
+
         try {
-            mqttClientId = MqttAsyncClient.generateClientId(); 
+            mqttClientId = MqttAsyncClient.generateClientId(); // Einzigartige Client-ID generieren
             mqttClient = new MqttClient(connectorConfiguration.getString("mqtt.connector.broker.uri"), mqttClientId,
                     new MemoryPersistence());
             mqttClient.setCallback(this);
@@ -94,7 +66,7 @@ public class MqttSourceConnectorTask extends SourceTask implements MqttCallback 
 
     @Override
     public String version() {
-        return Version.getVersion();
+        return "1.0"; // Standardversion
     }
 
     @Override
@@ -102,7 +74,6 @@ public class MqttSourceConnectorTask extends SourceTask implements MqttCallback 
         connectorConfiguration = new MqttSourceConnectorConfig(map);
         connectorName = connectorConfiguration.getString("mqtt.connector.kafka.name");
         kafkaTopic = connectorConfiguration.getString("mqtt.connector.kafka.topic");
-		mqttClientId = connectorConfiguration.getString("mqtt.connector.client.id");
         mqttTopic = connectorConfiguration.getString("mqtt.connector.broker.topic");
         logger.info("Starting AsamMqttSourceConnectorTask with connector name: '{}'", connectorName);
         initMqttClient();
@@ -120,7 +91,7 @@ public class MqttSourceConnectorTask extends SourceTask implements MqttCallback 
         try {
             if (mqttClient != null && mqttClient.isConnected()) {
                 mqttClient.disconnect();
-                mqttClient.close();
+                mqttClient.close(); // Sicherstellen, dass der Client geschlossen wird
                 logger.info("Disconnected and closed MQTT client for connector: '{}'.", connectorName);
             }
         } catch (MqttException e) {
@@ -143,8 +114,8 @@ public class MqttSourceConnectorTask extends SourceTask implements MqttCallback 
         logger.debug("Mqtt message arrived to connector: '{}', running client: '{}', on topic: '{}'.", connectorName,
                 mqttClientId, tempMqttTopic);
         try {
-            byte[] payload = mqttMessage.getPayload(); // Payload as Byte-Array
-            logger.debug("Mqtt message payload: '{}'", new String(payload));
+            byte[] payload = mqttMessage.getPayload(); // Payload als Byte-Array
+            logger.debug("Mqtt message payload: '{}'", new String(payload)); // Optional: Als String für Debugging
             mqttRecordQueue.put(new SourceRecord(Collections.singletonMap("mqttTopic", tempMqttTopic),
                     Collections.singletonMap("offset", System.currentTimeMillis()), kafkaTopic, null,
                     Schema.BYTES_SCHEMA, payload));
@@ -159,39 +130,5 @@ public class MqttSourceConnectorTask extends SourceTask implements MqttCallback 
     @Override
     public void deliveryComplete(IMqttDeliveryToken iMqttDeliveryToken) {
         // Optional: Handle message delivery completion if needed
-    }
-	
-	private byte[] addTopicToJSONByteArray(byte[] bytes, String topic) {
-        String topicAsJSON = ",\"topic\":\""+topic+"\"}";
-        int byteslen = bytes.length-1;
-        int topiclen = topicAsJSON.length();
-        logger.debug("New topic: '{}', for publishing by connector: '{}'", topicAsJSON, connectorName);
-        byte[] byteArrayWithTopic = new byte[byteslen+topiclen];
-        for (int i = 0; i < byteslen; i++) {
-            byteArrayWithTopic[i] = bytes[i];
-        }
-        for (int i = 0; i < topiclen; i++) {
-            byteArrayWithTopic[byteslen+i] = (byte) topicAsJSON.charAt(i);
-        }
-        logger.debug("New payload with topic key/value, as ascii array: '{}'", byteArrayWithTopic);
-        return byteArrayWithTopic;
-    }
-
-    private String makeDBDoc(byte[] payload, String topic) {
-      String msg = new String(payload);
-      Document message = Document.parse(msg);
-      Document doc = new Document();
-      List<String> topicArr = Arrays.asList(topic.split("/"));
-      Long unique_id = Long.parseLong(topicArr.get(21));
-      Long quadkey = Long.parseLong(String.join("",topicArr.subList(2,20)));
-      String now = ZonedDateTime.now(ZoneOffset.UTC).format(DateTimeFormatter.ISO_INSTANT);
-      Document dt = new Document();
-      dt.put("$date",now);
-      doc.put("message",message);
-      doc.put("unique_id",unique_id);
-      doc.put("quadkey",quadkey);
-      doc.put("updateDate",dt);
-      doc.put("pushed",false);
-      return doc.toJson();
     }
 }

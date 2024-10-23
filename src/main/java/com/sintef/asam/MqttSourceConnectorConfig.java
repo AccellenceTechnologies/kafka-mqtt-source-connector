@@ -49,11 +49,11 @@ public class MqttSourceConnectorConfig extends AbstractConfig {
                 .define("mqtt.connector.kafka.topic", Type.STRING, "upstream", Importance.MEDIUM,
                         "Kafka topic to publish on. This depends on processing unit.")
                 .define("mqtt.connector.kafka.name", Type.STRING, "source_kafka", Importance.MEDIUM,
-                        "Kafka topic to publish on. This depends on processing unit.");
+                        "Kafka topic to publish on. This depends on processing unit.")
 				.define("mqtt.connector.username", Type.STRING, null, Importance.MEDIUM,
                         "MQTT username for authentication")
                 .define("mqtt.connector.password", Type.PASSWORD, null, Importance.MEDIUM,
-                        "MQTT password for authentication")
+                        "MQTT password for authentication");
         return configDef;
     }
 
