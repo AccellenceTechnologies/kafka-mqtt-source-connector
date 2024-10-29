@@ -37,10 +37,10 @@ public class MqttSourceConnectorTask extends SourceTask implements MqttCallback 
         mqttConnectOptions.setUserName(connectorConfiguration.getString("mqtt.connector.username"));
         mqttConnectOptions
                 .setPassword(connectorConfiguration.getPassword("mqtt.connector.password").value().toCharArray());
-        mqttConnectOptions.setAutomaticReconnect(true); // Automatisches Wiederverbinden aktivieren
+        mqttConnectOptions.setAutomaticReconnect(true); // activate automatic reconnect
 
         try {
-            mqttClientId = MqttAsyncClient.generateClientId(); // Einzigartige Client-ID generieren
+            mqttClientId = MqttAsyncClient.generateClientId(); // generate unique client-id
             mqttClient = new MqttClient(connectorConfiguration.getString("mqtt.connector.broker.uri"), mqttClientId,
                     new MemoryPersistence());
             mqttClient.setCallback(this);
@@ -66,7 +66,7 @@ public class MqttSourceConnectorTask extends SourceTask implements MqttCallback 
 
     @Override
     public String version() {
-        return "1.0"; // Standardversion
+        return "1.0"; // standard version
     }
 
     @Override
@@ -91,7 +91,7 @@ public class MqttSourceConnectorTask extends SourceTask implements MqttCallback 
         try {
             if (mqttClient != null && mqttClient.isConnected()) {
                 mqttClient.disconnect();
-                mqttClient.close(); // Sicherstellen, dass der Client geschlossen wird
+                mqttClient.close(); // ensure client is closed
                 logger.info("Disconnected and closed MQTT client for connector: '{}'.", connectorName);
             }
         } catch (MqttException e) {
@@ -114,8 +114,8 @@ public class MqttSourceConnectorTask extends SourceTask implements MqttCallback 
         logger.debug("Mqtt message arrived to connector: '{}', running client: '{}', on topic: '{}'.", connectorName,
                 mqttClientId, tempMqttTopic);
         try {
-            byte[] payload = mqttMessage.getPayload(); // Payload als Byte-Array
-            logger.debug("Mqtt message payload: '{}'", new String(payload)); // Optional: Als String für Debugging
+            byte[] payload = mqttMessage.getPayload(); // payload as byte-array
+            logger.debug("Mqtt message payload: '{}'", new String(payload));
             mqttRecordQueue.put(new SourceRecord(Collections.singletonMap("mqttTopic", tempMqttTopic),
                     Collections.singletonMap("offset", System.currentTimeMillis()), kafkaTopic, null,
                     Schema.BYTES_SCHEMA, payload));
